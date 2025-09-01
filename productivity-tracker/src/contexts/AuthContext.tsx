@@ -29,27 +29,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkUser()
-    // Remove the auth state listener entirely to prevent unwanted re-renders
+    
+    // Listen for auth state changes (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // User just signed in, refresh their data
+        await checkUser()
+      } else if (event === 'SIGNED_OUT') {
+        // User signed out, clear data
+        setUser(null)
+        localStorage.removeItem('user')
+        setIsLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const checkUser = async () => {
     try {
-      // If we already have user data, just verify the session quickly
-      if (user) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          // Session is still valid, no need to re-fetch user data
-          return
-        } else {
-          // Session expired, clear user data
-          setUser(null)
-          localStorage.removeItem('user')
-          setIsLoading(false)
-          return
-        }
-      }
-      
-      // Only set loading for initial load
       setIsLoading(true)
       
       // Add a timeout to prevent infinite loading

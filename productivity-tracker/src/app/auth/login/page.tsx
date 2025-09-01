@@ -33,17 +33,11 @@ export default function LoginPage() {
       if (authError) throw authError
 
       // The AuthContext will handle fetching user data
-      // Wait a moment for the session to be established, then redirect
-      console.log('Login successful, waiting for session to establish...')
+      console.log('Login successful, redirecting...')
       
-      // Wait for the session to be properly set
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Refresh the session to ensure it's available to middleware
-      await supabase.auth.getSession()
-      
-      console.log('Session refreshed, redirecting...')
-      router.push('/')
+      // Use window.location.href for a full page reload
+      // This ensures the auth context properly initializes with the new session
+      window.location.href = '/'
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Invalid email or password')

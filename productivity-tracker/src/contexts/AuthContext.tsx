@@ -30,12 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     checkUser()
     
-    // Listen for auth state changes (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // User just signed in, refresh their data
-        await checkUser()
-      } else if (event === 'SIGNED_OUT') {
+    // Listen for auth state changes but only for sign out
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         // User signed out, clear data
         setUser(null)
         localStorage.removeItem('user')
@@ -48,11 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkUser = async () => {
     try {
-      setIsLoading(true)
+      // Don't set loading if we already have user data
+      if (!user) {
+        setIsLoading(true)
+      }
       
       // Add a timeout to prevent infinite loading
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 5000)
+        setTimeout(() => reject(new Error('Timeout')), 3000)
       )
       
       // Check if we have a session

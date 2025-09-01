@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productivity Tracker - Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .tab-content.hidden { display: none; }
+        .tab-btn.active { border-color: #1e3a8a; color: #1e3a8a; }
+        .navy-btn { background-color: #334155; }
+        .navy-btn:hover { background-color: #475569; }
+        
+        /* Hide number input arrows */
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        
+        /* Fix dropdown z-index issues */
+        select {
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* Ensure form container has proper stacking context */
+        #taskForm {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Ensure staff selection area has higher z-index */
+        .staff-selection-container {
+            position: relative;
+            z-index: 20;
+        }
+        
+        /* Drag and drop styles */
+        .draggable {
+            cursor: move;
+        }
+        
+        .dragging {
+            opacity: 0.5;
+        }
+        
+        .drop-indicator {
+            height: 3px;
+            background-color: #3b82f6;
+            margin: 2px 0;
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .drop-indicator.active {
+            opacity: 1;
+        }
+        
+        .drag-over-category {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+        
+        /* Drag handle icon */
+        .drag-handle {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 2px;
+            cursor: move;
+            color: #9ca3af;
+        }
+        
+        .drag-handle svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Time input alignment */
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .time-input-group input {
+            text-align: right;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <h1 class="text-xl font-semibold text-gray-900">FC&F Workload Manager</h1>
+                <button id="adminBtn" class="navy-btn inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Admin
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Staff Input Page -->
+        <div id="staffInputPage" class="max-w-4xl mx-auto">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Daily Task Entry</h2>
+                    <p class="mt-1 text-sm text-gray-600">Enter your task counts for the selected date</p>
+                </div>
+
+                <form id="taskForm" class="p-6">
+                    <!-- Staff and Date Selection -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="staff-selection-container">
+                            <label for="staff" class="block text-sm font-medium text-gray-700 mb-2">Staff Member</label>
+                            <select id="staff" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Select staff member</option>
+                                <option value="stevie">Stevie</option>
+                                <option value="chloe">Chloe</option>
+                                <option value="hunter">Hunter</option>
+                                <option value="swetha">Swetha</option>
+                                <option value="tharaka">Tharaka</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                            <input type="date" id="date" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                    </div>
+
+                    <!-- Task Categories -->
+                    <div id="taskCategories" class="space-y-8">
+                        <!-- Categories will be populated by JavaScript -->
+                    </div>
+
+
+                    <!-- Submit Button -->
+                    <div class="mt-8 flex justify-end">
+                        <button type="submit" id="submitBtn" class="navy-btn px-6 py-2 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300">
+                            Save Entry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin Page -->
+        <div id="adminPage" class="hidden">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-medium text-gray-900">Admin Dashboard</h2>
+                        <button id="backBtn" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            ← Back to Entry
+                        </button>
+                    </div>
+                    
+                    <!-- Tab Navigation -->
+                    <div class="mt-4">
+                        <nav class="flex space-x-8">
+                            <button class="tab-btn active whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors" data-tab="team-output">
+                                Team Output
+                            </button>
+                            <button class="tab-btn whitespace-nowrap py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors" data-tab="task-calibration">
+                                Task Calibration
+                            </button>
+                            <button class="tab-btn whitespace-nowrap py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors" data-tab="staff-management">
+                                Staff Management
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <!-- Team Output Tab -->
+                    <div id="team-output" class="tab-content">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Team Output</h3>
+                        <p class="text-sm text-gray-600 mb-4">View completed tasks with calculated time and productivity ratios. Only shows tasks that were actually completed (count > 0).</p>
+
+                        <!-- Filters -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Today's Date</label>
+                                <input type="date" id="todayDate" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Staff Member</label>
+                                <select id="staffFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">All Staff</option>
+                                    <option value="Stevie">Stevie</option>
+                                    <option value="Chloe">Chloe</option>
+                                    <option value="Hunter">Hunter</option>
+                                    <option value="Swetha">Swetha</option>
+                                    <option value="Tharaka">Tharaka</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Team Output Results -->
+                        <div id="teamOutputResults">
+                            <!-- Results will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Task Calibration Tab -->
+                    <div id="task-calibration" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Task Calibration</h3>
+                        <p class="text-sm text-gray-600 mb-4">Manage task durations and categories. Changes will affect future time calculations.</p>
+                        
+                        <!-- Add New Task and Category Buttons -->
+                        <div class="mb-6 flex gap-3">
+                            <button onclick="showAddTaskModal()" class="bg-[#334155] text-white px-4 py-2 rounded hover:bg-[#1e293b] transition-colors">
+                                Add New Task
+                            </button>
+                            <button onclick="showCreateCategoryModal()" class="bg-[#334155] text-white px-4 py-2 rounded hover:bg-[#1e293b] transition-colors">
+                                Create Category
+                            </button>
+                        </div>
+                        
+                        <!-- Tasks List -->
+                        <div id="taskCalibrationList" class="space-y-6">
+                            <!-- Tasks will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Staff Management Tab -->
+                    <div id="staff-management" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Staff Management</h3>
+                        <p class="text-sm text-gray-600 mb-4">Add or remove staff members from the system.</p>
+                        
+                        <!-- Add Staff Form -->
+                        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-3">Add New Staff Member</h4>
+                            <form id="addStaffForm" class="flex gap-3">
+                                <input type="text" id="newStaffName" placeholder="Enter staff name" 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                       required>
+                                <button type="submit" class="navy-btn px-4 py-2 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                                    Add Staff
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Staff List -->
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-3">Current Staff Members</h4>
+                            <div id="staffList" class="space-y-2">
+                                <!-- Staff list will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Task Modal -->
+    <div id="addTaskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 class="text-lg font-semibold mb-4">Add New Task</h3>
+            <form id="addTaskForm" onsubmit="handleAddTask(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select id="newTaskCategory" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="">Select category</option>
+                        <option value="ONBOARDING">ONBOARDING</option>
+                        <option value="FRAUD">FRAUD</option>
+                        <option value="UMR'S">UMR'S</option>
+                        <option value="TRANSACTION MONITORING">TRANSACTION MONITORING</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="LENDING">LENDING</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                    <input type="text" id="newTaskName" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Expected Duration (minutes)</label>
+                    <input type="number" id="newTaskDuration" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="hideAddTaskModal()" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-[#334155] text-white rounded-md hover:bg-[#1e293b] transition-colors">
+                        Add Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Category Modal -->
+    <div id="createCategoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 class="text-lg font-semibold mb-4">Create New Category</h3>
+            <form id="createCategoryForm" onsubmit="handleCreateCategory(event)">
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                    <input type="text" id="newCategoryName" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="hideCreateCategoryModal()" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-[#334155] text-white rounded-md hover:bg-[#1e293b] transition-colors">
+                        Create Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Task data with all categories and durations
+        const tasks = {
+            'ONBOARDING': [
+                { id: '1', name: 'Manual reviews', duration: 30 },
+                { id: '2', name: 'Ownership reviews', duration: 25 },
+                { id: '3', name: 'Blocklist hits', duration: 15 },
+                { id: '4', name: 'ECDD', duration: 45 },
+                { id: '5', name: 'KYC refresh', duration: 20 },
+                { id: '6', name: 'Manual KYC Verification', duration: 35 }
+            ],
+            'FRAUD': [
+                { id: '7', name: 'Fraud queue - Card', duration: 20 },
+                { id: '8', name: 'Fraud queue - Transfer', duration: 25 },
+                { id: '9', name: 'Fraud Reports (in and out)', duration: 30 },
+                { id: '10', name: 'Indemnities', duration: 40 },
+                { id: '11', name: 'Feedzai Failure Reconciliation', duration: 15 },
+                { id: '12', name: 'AFCX Upload', duration: 10 },
+                { id: '13', name: 'Fraud hotline', duration: 25 }
+            ],
+            'UMR\'S': [
+                { id: '15', name: 'MCL', duration: 30 },
+                { id: '16', name: 'Fraud', duration: 25 },
+                { id: '17', name: 'TM', duration: 20 },
+                { id: '18', name: 'Lending', duration: 35 },
+                { id: '19', name: 'Offboarding', duration: 30 },
+                { id: '20', name: 'QA', duration: 25 },
+                { id: '21', name: 'LEA/NTP', duration: 45 }
+            ],
+            'TRANSACTION MONITORING': [
+                { id: '22', name: 'Transaction Monitoring', duration: 30 }
+            ],
+            'ADMIN': [
+                { id: '23', name: 'Ops support', duration: 20 },
+                { id: '24', name: 'Reporting (DFAT, FCC reports etc).', duration: 60 },
+                { id: '25', name: 'Project Work', duration: 120 }
+            ],
+            'LENDING': [
+                { id: '26', name: 'Lending app review', duration: 40 },
+                { id: '27', name: 'Lending app QA', duration: 30 }
+            ]
+        };
+
+        // Mock data for team output (simulating saved entries)
+        let savedEntries = [
+            { staff: 'Stevie', date: '2024-08-24', taskId: '1', count: 5 },
+            { staff: 'Stevie', date: '2024-08-24', taskId: '7', count: 8 },
+            { staff: 'Stevie', date: '2024-08-24', taskId: '22', count: 3 },
+            { staff: 'Chloe', date: '2024-08-24', taskId: '4', count: 4 },
+            { staff: 'Chloe', date: '2024-08-24', taskId: '10', count: 3 },
+            { staff: 'Hunter', date: '2024-08-23', taskId: '25', count: 2 },
+            { staff: 'Hunter', date: '2024-08-23', taskId: '26', count: 6 }
+        ];
+        
+        // Staff members list (simulating database)
+        let staffMembers = [
+            { id: 'stevie', name: 'Stevie', active: true },
+            { id: 'chloe', name: 'Chloe', active: true },
+            { id: 'hunter', name: 'Hunter', active: true },
+            { id: 'swetha', name: 'Swetha', active: true },
+            { id: 'tharaka', name: 'Tharaka', active: true }
+        ];
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+            
+            // Set today's date for admin filter
+            document.getElementById('todayDate').value = today;
+
+            // Render task categories
+            renderTaskCategories();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Set up staff and date change listeners
+            document.getElementById('staff').addEventListener('change', loadExistingData);
+            document.getElementById('date').addEventListener('change', loadExistingData);
+            
+            // Initial team output render
+            renderTeamOutput();
+            
+            // Initial staff list render
+            renderStaffList();
+            
+            // Set up staff management form
+            document.getElementById('addStaffForm').addEventListener('submit', handleAddStaff);
+        }
+
+        function renderTaskCategories() {
+            const container = document.getElementById('taskCategories');
+            container.innerHTML = '';
+
+            Object.entries(tasks).forEach(([category, categoryTasks]) => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'border border-gray-200 rounded-lg p-4';
+                
+                categoryDiv.innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3 bg-gray-50 px-3 py-2 rounded">${category}</h3>
+                    <div class="space-y-2">
+                        ${categoryTasks.map(task => `
+                            <div class="flex items-center justify-between py-2 px-3 bg-white border border-gray-100 rounded">
+                                <label for="task-${task.id}" class="text-sm font-medium text-gray-700 flex-1">${task.name}</label>
+                                <input type="number" id="task-${task.id}" min="0" value="" 
+                                       class="task-input w-16 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+                                       placeholder="" data-task-id="${task.id}" data-duration="${task.duration}">
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(categoryDiv);
+            });
+        }
+
+        function setupEventListeners() {
+            // Admin/Back navigation
+            document.getElementById('adminBtn').addEventListener('click', showAdminPage);
+            document.getElementById('backBtn').addEventListener('click', showStaffInputPage);
+            
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab));
+            });
+            
+            // Task input changes
+            document.addEventListener('input', (e) => {
+                if (e.target.classList.contains('task-input')) {
+                    calculateTotals();
+                }
+            });
+            
+            // Form submission
+            document.getElementById('taskForm').addEventListener('submit', handleSubmit);
+            
+            // Admin filters
+            document.getElementById('todayDate').addEventListener('change', renderTeamOutput);
+            document.getElementById('staffFilter').addEventListener('change', renderTeamOutput);
+        }
+
+        function calculateTotals() {
+            // Function kept for compatibility but no longer displays summary
+            // since the Daily Summary section was removed
+        }
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            
+            const staff = document.getElementById('staff').value;
+            const date = document.getElementById('date').value;
+            
+            if (!staff || !date) {
+                showMessage('Please select staff member and date', 'error');
+                return;
+            }
+            
+            // Collect task counts
+            const taskInputs = document.querySelectorAll('.task-input');
+            const entries = [];
+            
+            taskInputs.forEach(input => {
+                const count = parseInt(input.value) || 0;
+                if (count > 0) {
+                    entries.push({
+                        staff: getStaffName(staff),
+                        date: date,
+                        taskId: input.dataset.taskId,
+                        count: count
+                    });
+                }
+            });
+            
+            // Remove existing entries for this staff/date
+            savedEntries = savedEntries.filter(entry => 
+                !(entry.staff === getStaffName(staff) && entry.date === date)
+            );
+            
+            // Add new entries
+            savedEntries.push(...entries);
+            
+            // Calculate totals for display
+            let totalMinutes = 0;
+            entries.forEach(entry => {
+                const task = findTaskById(entry.taskId);
+                totalMinutes += entry.count * task.duration;
+            });
+            
+            // Show success message
+            showMessage('Success!', 'success');
+            
+            // Don't clear form - keep numbers displayed so staff can verify what they entered
+            // calculateTotals(); // Keep current totals visible
+            
+            // Update team output if on admin page
+            renderTeamOutput();
+        }
+
+        function getStaffName(staffId) {
+            const staff = staffMembers.find(s => s.id === staffId);
+            return staff ? staff.name : staffId;
+        }
+
+        function findTaskById(taskId) {
+            for (const category of Object.values(tasks)) {
+                const task = category.find(t => t.id === taskId);
+                if (task) return task;
+            }
+            return null;
+        }
+
+        function resetTaskInputs() {
+            // Clear all task input values
+            const taskInputs = document.querySelectorAll('.task-input');
+            taskInputs.forEach(input => {
+                input.value = '';
+            });
+        }
+        
+        function loadExistingData() {
+            // First reset all inputs
+            resetTaskInputs();
+            
+            const staff = document.getElementById('staff').value;
+            const date = document.getElementById('date').value;
+            
+            if (!staff || !date) return;
+            
+            const staffName = getStaffName(staff);
+            
+            // Find existing entries for this staff/date combination
+            const existingEntries = savedEntries.filter(entry => 
+                entry.staff === staffName && entry.date === date
+            );
+            
+            // Populate the form with existing data
+            existingEntries.forEach(entry => {
+                const input = document.getElementById(`task-${entry.taskId}`);
+                if (input) {
+                    input.value = entry.count;
+                }
+            });
+            
+            // Update any totals display if needed
+            calculateTotals();
+        }
+
+        function showMessage(message, type) {
+            if (type === 'success') {
+                // Change button text and fade in
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Saved!';
+                submitBtn.style.opacity = '0.8';
+                
+                // Reset after 10 seconds
+                setTimeout(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.style.opacity = '1';
+                }, 10000);
+            } else {
+                // Handle error messages (keep existing functionality)
+                alert(message);
+            }
+        }
+
+        function showAdminPage() {
+            document.getElementById('staffInputPage').classList.add('hidden');
+            document.getElementById('adminPage').classList.remove('hidden');
+            renderTeamOutput();
+        }
+
+        function showStaffInputPage() {
+            document.getElementById('adminPage').classList.add('hidden');
+            document.getElementById('staffInputPage').classList.remove('hidden');
+        }
+
+        function switchTab(tabId) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('border-transparent', 'text-gray-500');
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+            });
+            
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            activeBtn.classList.add('active');
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            activeBtn.classList.add('border-blue-500', 'text-blue-600');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            // Refresh staff list when switching to staff management tab
+            if (tabId === 'staff-management') {
+                renderStaffList();
+            } else if (tabId === 'task-calibration') {
+                renderTaskCalibration();
+            }
+        }
+
+        function renderTeamOutput() {
+            const container = document.getElementById('teamOutputResults');
+            const selectedDate = document.getElementById('todayDate').value;
+            const selectedStaff = document.getElementById('staffFilter').value;
+            
+            // Filter entries based on selected date and staff
+            let filteredEntries = savedEntries.filter(entry => {
+                const matchesDate = !selectedDate || entry.date === selectedDate;
+                const matchesStaff = !selectedStaff || entry.staff === selectedStaff;
+                return matchesDate && matchesStaff;
+            });
+            
+            if (filteredEntries.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-500">No data found for the selected filters</div>';
+                return;
+            }
+            
+            // Group by staff
+            const staffData =

@@ -16,9 +16,9 @@ interface TaskDetail {
   category_position?: number
 }
 
-interface StaffData {
-  staff_id: string
-  staff_name: string
+interface UserData {
+  user_id: string
+  user_name: string
   totalMinutes: number
   categories: Record<string, {
     tasks: TaskDetail[]
@@ -28,43 +28,43 @@ interface StaffData {
   entries: TaskDetail[]
 }
 
-interface Staff {
+interface User {
   id: string
   name: string
-  is_active: boolean
+  email: string
+  access_level: 'ops' | 'admin'
 }
 
 export default function StaffDailyOutput() {
-  const [staffData, setStaffData] = useState<Record<string, StaffData>>({})
-  const [staff, setStaff] = useState<Staff[]>([])
+  const [userData, setUserData] = useState<Record<string, UserData>>({})
+  const [users, setUsers] = useState<User[]>([])
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [selectedStartDate, setSelectedStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [selectedEndDate, setSelectedEndDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [selectedStaffId, setSelectedStaffId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [isDateRange, setIsDateRange] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    fetchStaff()
+    fetchUsers()
   }, [])
 
   useEffect(() => {
     fetchOutputs()
-  }, [selectedDate, selectedStartDate, selectedEndDate, selectedStaffId, isDateRange])
+  }, [selectedDate, selectedStartDate, selectedEndDate, selectedUserId, isDateRange])
 
-  const fetchStaff = async () => {
+  const fetchUsers = async () => {
     const { data, error } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('is_active', true)
+      .from('users')
+      .select('id, name, email, access_level')
       .order('name')
 
     if (error) {
-      console.error('Error fetching staff:', error)
+      console.error('Error fetching users:', error)
       return
     }
 
-    setStaff(data || [])
+    setUsers(data || [])
   }
 
   const fetchOutputs = async () => {
@@ -74,10 +74,10 @@ export default function StaffDailyOutput() {
       .from('daily_entries')
       .select(`
         id,
-        staff_id,
+        user_id,
         entry_date,
         total_calculated_time_minutes,
-        staff!inner (id, name),
+        user:users!inner (id, name),
         daily_entry_items (
           count,
           calculated_time_minutes,
@@ -100,8 +100,8 @@ export default function StaffDailyOutput() {
       query = query.eq('entry_date', selectedDate)
     }
 
-    if (selectedStaffId) {
-      query = query.eq('staff_id', selectedStaffId)
+    if (selectedUserId) {
+      query = query.eq('user_id', selectedUserId)
     }
 
     const { data, error } = await query
@@ -113,16 +113,16 @@ export default function StaffDailyOutput() {
     }
 
     // Process data into the format needed for display
-    const processedData: Record<string, StaffData> = {}
+    const processedData: Record<string, UserData> = {}
     
     data?.forEach((entry: any) => {
-      const staffId = entry.staff_id
-      const staffName = entry.staff.name
+      const userId = entry.user_id
+      const userName = entry.user.name
       
-      if (!processedData[staffName]) {
-        processedData[staffName] = {
-          staff_id: staffId,
-          staff_name: staffName,
+      if (!processedData[userName]) {
+        processedData[userName] = {
+          user_id: userId,
+          user_name: userName,
           totalMinutes: 0,
           categories: {},
           entries: []
@@ -134,10 +134,10 @@ export default function StaffDailyOutput() {
           const task = item.task
           const category = task.category
           
-          processedData[staffName].totalMinutes += item.calculated_time_minutes
+          processedData[userName].totalMinutes += item.calculated_time_minutes
           
-          if (!processedData[staffName].categories[category]) {
-            processedData[staffName].categories[category] = {
+          if (!processedData[userName].categories[category]) {
+            processedData[userName].categories[category] = {
               tasks: [],
               totalCount: 0,
               category_position: task.category_position || 999
@@ -145,17 +145,17 @@ export default function StaffDailyOutput() {
           }
           
           // Check if task already exists in this category
-          const existingTaskIndex = processedData[staffName].categories[category].tasks.findIndex(
+          const existingTaskIndex = processedData[userName].categories[category].tasks.findIndex(
             t => t.task_name === task.name
           )
           
           if (existingTaskIndex >= 0) {
             // Task exists, add to existing count
-            processedData[staffName].categories[category].tasks[existingTaskIndex].count += item.count
-            processedData[staffName].categories[category].tasks[existingTaskIndex].calculated_time_minutes += item.calculated_time_minutes
+            processedData[userName].categories[category].tasks[existingTaskIndex].count += item.count
+            processedData[userName].categories[category].tasks[existingTaskIndex].calculated_time_minutes += item.calculated_time_minutes
           } else {
             // New task, add it
-            processedData[staffName].categories[category].tasks.push({
+            processedData[userName].categories[category].tasks.push({
               task_name: task.name,
               category: category,
               count: item.count,
@@ -167,20 +167,20 @@ export default function StaffDailyOutput() {
             })
           }
           
-          processedData[staffName].categories[category].totalCount += item.count
+          processedData[userName].categories[category].totalCount += item.count
           
           // Check if task already exists in entries
-          const existingEntryIndex = processedData[staffName].entries.findIndex(
+          const existingEntryIndex = processedData[userName].entries.findIndex(
             e => e.task_name === task.name && e.category === category
           )
           
           if (existingEntryIndex >= 0) {
             // Task exists, add to existing count
-            processedData[staffName].entries[existingEntryIndex].count += item.count
-            processedData[staffName].entries[existingEntryIndex].calculated_time_minutes += item.calculated_time_minutes
+            processedData[userName].entries[existingEntryIndex].count += item.count
+            processedData[userName].entries[existingEntryIndex].calculated_time_minutes += item.calculated_time_minutes
           } else {
             // New task, add it
-            processedData[staffName].entries.push({
+            processedData[userName].entries.push({
               task_name: task.name,
               category: category,
               count: item.count,
@@ -193,7 +193,7 @@ export default function StaffDailyOutput() {
       })
     })
 
-    setStaffData(processedData)
+    setUserData(processedData)
     setIsLoading(false)
   }
 
@@ -224,10 +224,10 @@ export default function StaffDailyOutput() {
       .from('daily_entries')
       .select(`
         id,
-        staff_id,
+        user_id,
         entry_date,
         total_calculated_time_minutes,
-        staff!inner (id, name),
+        user:users!inner (id, name),
         daily_entry_items (
           count,
           calculated_time_minutes,
@@ -251,8 +251,8 @@ export default function StaffDailyOutput() {
       query = query.eq('entry_date', selectedDate)
     }
 
-    if (selectedStaffId) {
-      query = query.eq('staff_id', selectedStaffId)
+    if (selectedUserId) {
+      query = query.eq('user_id', selectedUserId)
     }
 
     const { data: rawData, error } = await query
@@ -279,7 +279,7 @@ export default function StaffDailyOutput() {
     
     // Process individual sheet data - show each date separately
     rawData?.forEach((entry: any) => {
-      const staffName = entry.staff.name
+      const userName = entry.user.name
       const entryDate = formatDateDDMMYYYY(entry.entry_date)
       const dailyTotalMinutes = entry.total_calculated_time_minutes
       const dailyProductivity = Math.round((dailyTotalMinutes / 450) * 100) // 450 minutes = 7.5 hours
@@ -304,7 +304,7 @@ export default function StaffDailyOutput() {
         
         individualSheet.addRow([
           entryDate,
-          staffName,
+          userName,
           task.category,
           task.name,
           unitType,
@@ -453,19 +453,19 @@ export default function StaffDailyOutput() {
   }
 
   // Calculate team summary
-  const activeStaffCount = Object.keys(staffData).length
-  const totalStaff = staff.length
+  const activeUserCount = Object.keys(userData).length
+  const totalUsers = users.length
   
   // Calculate team productivity accounting for date ranges
   const daysInPeriod = isDateRange 
     ? Math.ceil((new Date(selectedEndDate).getTime() - new Date(selectedStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 1
-  const expectedTeamMinutesPerPeriod = 450 * activeStaffCount * daysInPeriod
-  const teamProductivity = activeStaffCount > 0 
-    ? Math.round((Object.values(staffData).reduce((sum, data) => sum + data.totalMinutes, 0) / expectedTeamMinutesPerPeriod) * 100) 
+  const expectedTeamMinutesPerPeriod = 450 * activeUserCount * daysInPeriod
+  const teamProductivity = activeUserCount > 0 
+    ? Math.round((Object.values(userData).reduce((sum, data) => sum + data.totalMinutes, 0) / expectedTeamMinutesPerPeriod) * 100) 
     : 0
 
-  // Calculate category totals across all staff with task details and position info
+  // Calculate category totals across all users with task details and position info
   const categoryTotals: Record<string, { 
     tasks: Record<string, { count: number, measurement_type: 'tasks' | 'time', duration: number, calculated_time_minutes: number, position: number }>,
     category_position: number
@@ -473,7 +473,7 @@ export default function StaffDailyOutput() {
   let totalTaskCount = 0
   let totalTeamTime = 0
   
-  Object.values(staffData).forEach(data => {
+  Object.values(userData).forEach(data => {
     Object.entries(data.categories).forEach(([category, categoryData]) => {
       if (!categoryTotals[category]) {
         categoryTotals[category] = {
@@ -711,15 +711,15 @@ export default function StaffDailyOutput() {
             </>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Staff Member</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
             <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
               className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Staff</option>
-              {staff.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              <option value="">All Users</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>
           </div>
@@ -731,7 +731,7 @@ export default function StaffDailyOutput() {
         <button
           onClick={exportToExcel}
           className="bg-[#334155] text-white px-4 py-2 rounded hover:bg-[#475569] transition-colors"
-          disabled={Object.keys(staffData).length === 0}
+          disabled={Object.keys(userData).length === 0}
         >
           Export to Excel
         </button>
@@ -741,7 +741,7 @@ export default function StaffDailyOutput() {
       <div id="teamOutputResults">
         {isLoading ? (
           <div className="text-center py-8">Loading...</div>
-        ) : Object.keys(staffData).length === 0 ? (
+        ) : Object.keys(userData).length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             No data found for the selected criteria
           </div>
@@ -757,8 +757,8 @@ export default function StaffDailyOutput() {
               
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900">{activeStaffCount}/{totalStaff}</div>
-                  <div className="text-sm text-gray-600">Staff Members</div>
+                  <div className="text-3xl font-bold text-gray-900">{activeUserCount}/{totalUsers}</div>
+                  <div className="text-sm text-gray-600">Team Members</div>
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-gray-900">{teamProductivity}%</div>
@@ -815,20 +815,20 @@ export default function StaffDailyOutput() {
               <h3 className="text-lg font-semibold text-gray-900">INDIVIDUAL OVERVIEW</h3>
             </div>
 
-            {/* Individual Staff Sections */}
-            {Object.entries(staffData).map(([staffName, data]) => {
-              const staffTotalTasks = data.entries.reduce((sum, entry) => sum + entry.count, 0)
+            {/* Individual User Sections */}
+            {Object.entries(userData).map(([userName, data]) => {
+              const userTotalTasks = data.entries.reduce((sum, entry) => sum + entry.count, 0)
               // Calculate productivity accounting for date ranges
-              const daysInPeriodForStaff = isDateRange 
+              const daysInPeriodForUser = isDateRange 
                 ? Math.ceil((new Date(selectedEndDate).getTime() - new Date(selectedStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
                 : 1
-              const expectedMinutesForStaff = 450 * daysInPeriodForStaff // 450 minutes = 7.5 hours per day
-              const productivity = Math.round((data.totalMinutes / expectedMinutesForStaff) * 100)
+              const expectedMinutesForUser = 450 * daysInPeriodForUser // 450 minutes = 7.5 hours per day
+              const productivity = Math.round((data.totalMinutes / expectedMinutesForUser) * 100)
               
               return (
-                <div key={staffName} className="mb-6 bg-white border border-gray-200 rounded-lg p-6">
+                <div key={userName} className="mb-6 bg-white border border-gray-200 rounded-lg p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">{staffName}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{userName}</h3>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-900">{productivity}%</div>
                       <div className="text-sm text-gray-500">{formatTimeHMM(data.totalMinutes)}</div>

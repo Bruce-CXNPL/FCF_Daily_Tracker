@@ -16,12 +16,6 @@ interface Task {
   display_text?: string
 }
 
-interface Staff {
-  id: string
-  name: string
-  is_active: boolean
-}
-
 interface DailyEntryItem {
   task_id: string
   count: number
@@ -34,63 +28,16 @@ export default function StaffInput() {
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [userStaffId, setUserStaffId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) {
-      fetchUserStaffId()
-    }
     fetchTasks()
-  }, [user])
+  }, [])
 
   useEffect(() => {
-    if (userStaffId && selectedDate) {
+    if (user && selectedDate) {
       fetchExistingEntry()
     }
-  }, [userStaffId, selectedDate])
-
-  const fetchUserStaffId = async () => {
-    if (!user) return
-
-    // Check if user has a linked staff record
-    if (user.staff_id) {
-      setUserStaffId(user.staff_id)
-    } else {
-      // Try to find or create a staff record for this user
-      const { data: staffData, error: staffError } = await supabase
-        .from('staff')
-        .select('id')
-        .eq('name', user.name)
-        .single()
-
-      if (staffData) {
-        // Link the staff record to the user
-        setUserStaffId(staffData.id)
-        await supabase
-          .from('users')
-          .update({ staff_id: staffData.id })
-          .eq('id', user.id)
-      } else {
-        // Create a new staff record for this user
-        const { data: newStaff, error: createError } = await supabase
-          .from('staff')
-          .insert({
-            name: user.name,
-            is_active: true
-          })
-          .select()
-          .single()
-
-        if (newStaff) {
-          setUserStaffId(newStaff.id)
-          await supabase
-            .from('users')
-            .update({ staff_id: newStaff.id })
-            .eq('id', user.id)
-        }
-      }
-    }
-  }
+  }, [user, selectedDate])
 
   const fetchTasks = async () => {
     const { data, error } = await supabase
@@ -122,7 +69,7 @@ export default function StaffInput() {
   }
 
   const fetchExistingEntry = async () => {
-    if (!userStaffId) return
+    if (!user) return
 
     const { data, error } = await supabase
       .from('daily_entries')
@@ -133,7 +80,7 @@ export default function StaffInput() {
           count
         )
       `)
-      .eq('staff_id', userStaffId)
+      .eq('user_id', user.id)
       .eq('entry_date', selectedDate)
       .single()
 
@@ -164,11 +111,6 @@ export default function StaffInput() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!userStaffId) {
-      alert('Unable to identify staff member. Please contact an administrator.')
-      return
-    }
-
     if (!user) {
       alert('You must be logged in to submit entries.')
       return
@@ -207,7 +149,7 @@ export default function StaffInput() {
       const { data: existingEntry } = await supabase
         .from('daily_entries')
         .select('id')
-        .eq('staff_id', userStaffId)
+        .eq('user_id', user.id)
         .eq('entry_date', selectedDate)
         .single()
 
@@ -227,11 +169,10 @@ export default function StaffInput() {
         const { data: newEntry, error: entryError } = await supabase
           .from('daily_entries')
           .insert({
-            staff_id: userStaffId,
+            user_id: user.id,
             entry_date: selectedDate,
             total_calculated_time_minutes: totalMinutes,
-            productivity_ratio: (totalMinutes / 450), // 7.5 hours = 450 minutes
-            user_id: user.id // Link to the user who created this entry
+            productivity_ratio: (totalMinutes / 450) // 7.5 hours = 450 minutes
           })
           .select()
           .single()

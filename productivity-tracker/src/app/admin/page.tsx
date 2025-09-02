@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import StaffDailyOutput from '@/components/admin/StaffDailyOutput'
 import TaskCalibration from '@/components/admin/TaskCalibration'
-import StaffManagement from '@/components/admin/StaffManagement'
 import UserManagement from '@/components/admin/UserManagement'
 
 export default function AdminPage() {
@@ -79,16 +78,6 @@ export default function AdminPage() {
               </button>
               <button
                 className={`tab-btn whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'staff-management'
-                    ? 'active border-blue-900 text-black'
-                    : 'border-transparent text-black hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => switchTab('staff-management')}
-              >
-                Staff Management
-              </button>
-              <button
-                className={`tab-btn whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'user-management'
                     ? 'active border-blue-900 text-black'
                     : 'border-transparent text-black hover:text-gray-700 hover:border-gray-300'
@@ -110,11 +99,6 @@ export default function AdminPage() {
           {/* Task Calibration Tab */}
           <div id="task-calibration" className={`tab-content ${activeTab !== 'task-calibration' ? 'hidden' : ''}`}>
             <TaskCalibration />
-          </div>
-
-          {/* Staff Management Tab */}
-          <div id="staff-management" className={`tab-content ${activeTab !== 'staff-management' ? 'hidden' : ''}`}>
-            <StaffManagement />
           </div>
 
           {/* User Management Tab */}

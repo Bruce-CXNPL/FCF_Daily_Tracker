@@ -12,6 +12,7 @@ interface User {
   created_at: string
   last_login: string | null
   staff_id: string | null
+  is_active: boolean
 }
 
 export default function UserManagement() {
@@ -29,6 +30,7 @@ export default function UserManagement() {
     const { data, error } = await supabase
       .from('users')
       .select('*')
+      .eq('is_active', true)  // Only show active users
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -41,7 +43,7 @@ export default function UserManagement() {
   }
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This will remove them from the system.')) {
+    if (!confirm('Are you sure you want to delete this user? This will deactivate their account while preserving all their historical data.')) {
       return
     }
 
@@ -49,43 +51,32 @@ export default function UserManagement() {
     setSuccess('')
 
     try {
-      console.log('Attempting to delete user with ID:', userId)
+      console.log('Attempting to soft delete user with ID:', userId)
       
-      // First, check if user has any related records that might prevent deletion
-      const { data: relatedEntries, error: checkError } = await supabase
-        .from('daily_entries')
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1)
-
-      if (checkError) {
-        console.error('Error checking related records:', checkError)
-      } else if (relatedEntries && relatedEntries.length > 0) {
-        setError('Cannot delete user: User has existing daily entries. Please remove all related data first.')
-        return
-      }
-
-      // Delete from our users table
+      // Soft delete: Set is_active to false instead of actually deleting the record
       const { error: dbError, data } = await supabase
         .from('users')
-        .delete()
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', userId)
         .select()
 
-      console.log('Delete result:', { error: dbError, data })
+      console.log('Soft delete result:', { error: dbError, data })
 
       if (dbError) {
-        console.error('Error deleting user:', dbError)
+        console.error('Error deactivating user:', dbError)
         setError(`Failed to delete user: ${dbError.message || 'Unknown error'}`)
       } else {
-        setSuccess('User deleted successfully')
-        fetchUsers()
+        setSuccess('User deleted successfully. All historical data has been preserved.')
+        fetchUsers() // This will refresh the list and hide the deactivated user
         
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000)
       }
     } catch (error) {
-      console.error('Error deleting user:', error)
+      console.error('Error deactivating user:', error)
       setError(`Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }

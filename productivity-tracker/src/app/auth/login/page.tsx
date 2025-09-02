@@ -32,6 +32,22 @@ export default function LoginPage() {
 
       if (authError) throw authError
 
+      // Update last_login timestamp in the users table
+      if (authData.user) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ 
+            last_login: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', authData.user.id)
+        
+        if (updateError) {
+          console.error('Failed to update last login:', updateError)
+          // Don't throw error here, login was successful
+        }
+      }
+
       // The AuthContext will handle fetching user data
       console.log('Login successful, redirecting...')
       

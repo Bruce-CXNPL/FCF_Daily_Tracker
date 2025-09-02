@@ -452,9 +452,9 @@ export default function StaffDailyOutput() {
     URL.revokeObjectURL(url)
   }
 
-  // Calculate team summary
+  // Calculate team summary (exclude admins from total count)
   const activeUserCount = Object.keys(userData).length
-  const totalUsers = users.length
+  const totalOpsUsers = users.filter(u => u.access_level !== 'admin').length
   
   // Calculate team productivity accounting for date ranges
   const daysInPeriod = isDateRange 
@@ -571,14 +571,18 @@ export default function StaffDailyOutput() {
             Last Month
           </button>
           <button
+            type="button"
             onClick={() => {
               setIsDateRange(true)
-              // Clear any preset selections when manually selecting date range
-              if (selectedStartDate === selectedEndDate) {
-                setSelectedEndDate(format(new Date(), 'yyyy-MM-dd'))
+              // Set default date range if switching from single date mode
+              if (!isDateRange) {
+                const today = new Date()
+                const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)
+                setSelectedStartDate(format(sevenDaysAgo, 'yyyy-MM-dd'))
+                setSelectedEndDate(format(today, 'yyyy-MM-dd'))
               }
             }}
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
               isDateRange && !(
                 (selectedStartDate === format(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd') && selectedEndDate === format(new Date(), 'yyyy-MM-dd')) ||
                 (selectedStartDate === format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate()), 'yyyy-MM-dd') && selectedEndDate === format(new Date(), 'yyyy-MM-dd'))
@@ -586,7 +590,6 @@ export default function StaffDailyOutput() {
                 ? 'bg-[#334155] text-white border-[#334155]'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-[#475569] hover:text-white'
             }`}
-            style={{ userSelect: 'none' }}
           >
             Date Range
           </button>
@@ -757,7 +760,7 @@ export default function StaffDailyOutput() {
               
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900">{activeUserCount}/{totalUsers}</div>
+                  <div className="text-3xl font-bold text-gray-900">{activeUserCount}/{totalOpsUsers}</div>
                   <div className="text-sm text-gray-600">Team Members</div>
                 </div>
                 <div className="text-center">

@@ -777,7 +777,7 @@ export default function TaskCalibration() {
       <div className="mt-6 flex justify-end">
         <button
           onClick={savePositionChanges}
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition-colors"
+          className="bg-[#1e3a8a] text-white px-6 py-2 rounded hover:bg-[#1e40af] transition-colors"
         >
           Save Changes
         </button>

@@ -29,11 +29,6 @@ export default function Home() {
           {user && (
             <div className="text-sm text-gray-600">
               Welcome, <span className="font-medium">{user.name}</span>
-              {user.access_level === 'admin' && (
-                <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                  Admin
-                </span>
-              )}
             </div>
           )}
         </div>

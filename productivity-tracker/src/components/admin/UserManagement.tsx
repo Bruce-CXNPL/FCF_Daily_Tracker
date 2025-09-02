@@ -41,36 +41,33 @@ export default function UserManagement() {
   }
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this user? This will remove them from the system.')) {
       return
     }
 
     setError('')
     setSuccess('')
 
-    // First, delete from Supabase Auth
-    const { error: authError } = await supabase.auth.admin.deleteUser(userId)
-    
-    if (authError) {
-      // If auth deletion fails, try to delete from our table anyway
-      console.error('Error deleting from auth:', authError)
-    }
+    try {
+      // Delete from our users table
+      const { error: dbError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId)
 
-    // Delete from our users table
-    const { error: dbError } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId)
-
-    if (dbError) {
-      console.error('Error deleting user:', dbError)
+      if (dbError) {
+        console.error('Error deleting user:', dbError)
+        setError('Failed to delete user')
+      } else {
+        setSuccess('User deleted successfully')
+        fetchUsers()
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000)
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
       setError('Failed to delete user')
-    } else {
-      setSuccess('User deleted successfully')
-      fetchUsers()
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000)
     }
   }
 

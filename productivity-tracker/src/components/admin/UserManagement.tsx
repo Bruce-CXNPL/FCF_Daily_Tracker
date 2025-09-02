@@ -27,34 +27,46 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setIsLoading(true)
-    const { data, error } = await supabase
+    
+    // First try to fetch with is_active filter (for after migration)
+    let { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('is_active', true)  // Only show active users
+      .eq('is_active', true)
       .order('created_at', { ascending: false })
+
+    // If error (likely because is_active column doesn't exist), fetch all users
+    if (error && error.message?.includes('is_active')) {
+      console.log('is_active column not found, fetching all users')
+      const fallbackResult = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      data = fallbackResult.data
+      error = fallbackResult.error
+    }
 
     if (error) {
       console.error('Error fetching users:', error)
       setError('Failed to load users')
     } else {
-      setUsers(data || [])
+      // Filter out inactive users on client side if is_active column exists
+      const filteredUsers = (data || []).filter(user => user.is_active !== false)
+      setUsers(filteredUsers)
     }
     setIsLoading(false)
   }
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This will deactivate their account while preserving all their historical data.')) {
-      return
-    }
-
     setError('')
     setSuccess('')
 
     try {
       console.log('Attempting to soft delete user with ID:', userId)
       
-      // Soft delete: Set is_active to false instead of actually deleting the record
-      const { error: dbError, data } = await supabase
+      // First try soft delete (set is_active to false)
+      let { error: dbError, data } = await supabase
         .from('users')
         .update({ 
           is_active: false,
@@ -62,6 +74,12 @@ export default function UserManagement() {
         })
         .eq('id', userId)
         .select()
+
+      // If error because is_active column doesn't exist, show warning
+      if (dbError && dbError.message?.includes('is_active')) {
+        setError('Cannot delete user: Database migration required. Please run the database migration first to enable soft delete functionality.')
+        return
+      }
 
       console.log('Soft delete result:', { error: dbError, data })
 

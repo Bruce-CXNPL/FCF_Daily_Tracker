@@ -49,15 +49,34 @@ export default function UserManagement() {
     setSuccess('')
 
     try {
+      console.log('Attempting to delete user with ID:', userId)
+      
+      // First, check if user has any related records that might prevent deletion
+      const { data: relatedEntries, error: checkError } = await supabase
+        .from('daily_entries')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (checkError) {
+        console.error('Error checking related records:', checkError)
+      } else if (relatedEntries && relatedEntries.length > 0) {
+        setError('Cannot delete user: User has existing daily entries. Please remove all related data first.')
+        return
+      }
+
       // Delete from our users table
-      const { error: dbError } = await supabase
+      const { error: dbError, data } = await supabase
         .from('users')
         .delete()
         .eq('id', userId)
+        .select()
+
+      console.log('Delete result:', { error: dbError, data })
 
       if (dbError) {
         console.error('Error deleting user:', dbError)
-        setError('Failed to delete user')
+        setError(`Failed to delete user: ${dbError.message || 'Unknown error'}`)
       } else {
         setSuccess('User deleted successfully')
         fetchUsers()
@@ -67,7 +86,7 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error('Error deleting user:', error)
-      setError('Failed to delete user')
+      setError(`Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

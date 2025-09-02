@@ -574,13 +574,7 @@ export default function StaffDailyOutput() {
             type="button"
             onClick={() => {
               setIsDateRange(true)
-              // Set default date range if switching from single date mode
-              if (!isDateRange) {
-                const today = new Date()
-                const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)
-                setSelectedStartDate(format(sevenDaysAgo, 'yyyy-MM-dd'))
-                setSelectedEndDate(format(today, 'yyyy-MM-dd'))
-              }
+              // Don't automatically set dates - let user choose their own range
             }}
             className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
               isDateRange && !(

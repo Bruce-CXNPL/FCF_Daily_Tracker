@@ -16,8 +16,6 @@ interface User {
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([])
-  const [editingUser, setEditingUser] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Partial<User>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -40,68 +38,6 @@ export default function UserManagement() {
       setUsers(data || [])
     }
     setIsLoading(false)
-  }
-
-  const handleEdit = (user: User) => {
-    setEditingUser(user.id)
-    setEditForm({
-      name: user.name,
-      email: user.email,
-      access_level: user.access_level
-    })
-    setError('')
-    setSuccess('')
-  }
-
-  const handleCancelEdit = () => {
-    setEditingUser(null)
-    setEditForm({})
-    setError('')
-    setSuccess('')
-  }
-
-  const handleSaveEdit = async (userId: string) => {
-    setError('')
-    setSuccess('')
-
-    // Check if email is being changed and if it's already in use
-    const currentUser = users.find(u => u.id === userId)
-    if (editForm.email !== currentUser?.email) {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', editForm.email)
-        .neq('id', userId)
-        .single()
-
-      if (existingUser) {
-        setError('Email address is already in use')
-        return
-      }
-    }
-
-    const { error } = await supabase
-      .from('users')
-      .update({
-        name: editForm.name,
-        email: editForm.email,
-        access_level: editForm.access_level,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-
-    if (error) {
-      console.error('Error updating user:', error)
-      setError('Failed to update user')
-    } else {
-      setSuccess('User updated successfully')
-      setEditingUser(null)
-      setEditForm({})
-      fetchUsers()
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000)
-    }
   }
 
   const handleDelete = async (userId: string) => {
@@ -204,48 +140,19 @@ export default function UserManagement() {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {editingUser === user.id ? (
-                      <input
-                        type="text"
-                        value={editForm.name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : (
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                    )}
+                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {editingUser === user.id ? (
-                      <input
-                        type="email"
-                        value={editForm.email || ''}
-                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : (
-                      <div className="text-sm text-gray-900">{user.email}</div>
-                    )}
+                    <div className="text-sm text-gray-900">{user.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {editingUser === user.id ? (
-                      <select
-                        value={editForm.access_level || 'ops'}
-                        onChange={(e) => setEditForm({ ...editForm, access_level: e.target.value as 'ops' | 'admin' })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="ops">Ops</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    ) : (
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.access_level === 'admin' 
-                          ? 'bg-purple-100 text-purple-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.access_level === 'admin' ? 'Admin' : 'Ops'}
-                      </span>
-                    )}
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      user.access_level === 'admin' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.access_level === 'admin' ? 'Admin' : 'Ops'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -263,37 +170,12 @@ export default function UserManagement() {
                     {formatDate(user.last_login)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {editingUser === user.id ? (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleSaveEdit(user.id)}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(user)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      onClick={() => handleDelete(user.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}

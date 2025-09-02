@@ -127,6 +127,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null)
           }
         } else if (userData) {
+          // Update last_login timestamp when user data is fetched (indicates active session)
+          try {
+            await supabase
+              .from('users')
+              .update({ 
+                last_login: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userData.id)
+          } catch (updateError) {
+            console.error('Failed to update last login:', updateError)
+            // Don't fail the login process if this fails
+          }
+
           const userInfo: User = {
             id: userData.id,
             name: userData.name,
